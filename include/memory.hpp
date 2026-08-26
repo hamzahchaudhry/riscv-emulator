@@ -1,8 +1,6 @@
-#ifndef MEMORY_HPP
-#define MEMORY_HPP
+#pragma once
 
-#include "types.hpp"
-
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -10,10 +8,8 @@ class Memory {
 public:
   Memory(const std::string &file);
 
-  word_t read_addr(word_t addr) const;
+  std::uint32_t read_addr(std::uint32_t addr) const;
 
 private:
-  std::vector<byte_t> data;
+  std::vector<std::uint8_t> data;
 };
-
-#endif

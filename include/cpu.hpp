@@ -1,25 +1,23 @@
-#ifndef CPU_HPP
-#define CPU_HPP
+#pragma once
 
+#include "instruction.hpp"
 #include "memory.hpp"
-#include "types.hpp"
 #include <array>
+#include <cstdint>
+#include <optional>
 
 class CPU {
 public:
+  CPU() {};
   void emulate_cycle(Memory &memory);
-  word_t read_reg(byte_t index) const;
+  std::uint32_t read_reg(std::uint8_t index) const;
 
 private:
-  word_t PC = 0;
-  std::array<word_t, 32> x{};
+  std::uint32_t PC = 0;
+  std::array<std::uint32_t, 32> x{};
 
-  bool write_reg(byte_t index, word_t val);
-  DecodedInstr decode(word_t instr);
-  void execute(word_t instr);
-  word_t sign_extend(word_t instr);
-  void execute_i_type(word_t instr);
-  void execute_r_type(word_t instr);
+  bool write_reg(std::uint8_t index, std::uint32_t val);
+  std::int32_t sign_extend(std::uint32_t imm, std::uint32_t n);
+  std::optional<Instruction> decode(const std::uint32_t &instr);
+  void execute(const Instruction &instr);
 };
-
-#endif

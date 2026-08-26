@@ -1,14 +1,16 @@
 #include "cpu.hpp"
 
+#include <optional>
 #include <stdexcept>
+#include <variant>
 
-word_t CPU::read_reg(byte_t index) const {
+std::uint32_t CPU::read_reg(std::uint8_t index) const {
   if (index >= x.size())
     throw std::out_of_range("invalid register index");
   return (index == 0) ? 0 : x[index];
 }
 
-bool CPU::write_reg(byte_t index, word_t val) {
+bool CPU::write_reg(std::uint8_t index, std::uint32_t val) {
   if (index > 0 && index < x.size()) {
     x[index] = val;
     return true;
@@ -17,49 +19,68 @@ bool CPU::write_reg(byte_t index, word_t val) {
 }
 
 void CPU::emulate_cycle(Memory &memory) {
-  word_t instruction = memory.read_addr(PC);
-  execute(instruction);
+  std::uint32_t instr = memory.read_addr(PC);
+  const auto decoded_instr = decode(instr);
+  if (decoded_instr)
+    execute(*decoded_instr);
 }
 
-void CPU::execute(word_t instruction) {
-  word_t opcode = instruction & 0x7F;
-
-  if (opcode == 0x13)
-    execute_i_type(instruction);
-
-  if (opcode == 0x33)
-    execute_r_type(instruction);
-
-  PC += 4;
-}
-
-void CPU::execute_i_type(word_t instruction) {
-  byte_t rd = (instruction >> 7) & 0x1F;
-  byte_t rs1 = (instruction >> 15) & 0x1F;
-
-  write_reg(rd, read_reg(rs1) + sign_extend(instruction));
-}
-
-void CPU::execute_r_type(word_t instruction) {
-  byte_t rd = (instruction >> 7) & 0x1F;
-  byte_t rs1 = (instruction >> 15) & 0x1F;
-  byte_t rs2 = (instruction >> 20) & 0x1F;
-
-  write_reg(rd, read_reg(rs1) + read_reg(rs2));
-}
-
-word_t CPU::sign_extend(word_t instruction) {
-  word_t opcode = instruction & 0x7F;
-
-  if (opcode == 0b0010011) {
-    word_t imm = instruction >> 20;
-
-    if (imm & 0x800) {
-      imm |= 0xFFFFF000;
+std::optional<Instruction> CPU::decode(const std::uint32_t &instr) {
+  const auto opcode = static_cast<Opcode>(instr & 0x7F);
+  switch (opcode) {
+    case Opcode::R: {
+      const auto rd = static_cast<std::uint8_t>((instr >> 7) & 0x1F);
+      const auto funct3 = static_cast<R_Funct3>((instr >> 12) & 0x7);
+      const auto rs1 = static_cast<std::uint8_t>((instr >> 15) & 0x1F);
+      const auto rs2 = static_cast<std::uint8_t>((instr >> 20) & 0x1F);
+      const auto funct7 = static_cast<R_Funct7>((instr >> 25) & 0x7F);
+      return RType{opcode, rd, funct3, rs1, rs2, funct7};
     }
-
-    return imm;
+    case Opcode::I: {
+      const auto rd = static_cast<std::uint8_t>((instr >> 7) & 0x1F);
+      const auto funct3 = static_cast<I_Funct3>((instr >> 12) & 0x7);
+      const auto rs1 = static_cast<std::uint8_t>((instr >> 15) & 0x1F);
+      const auto imm = static_cast<std::int32_t>((instr >> 20) & 0xFFF);
+      return IType{opcode, rd, funct3, rs1, imm};
+    }
+    default:
+      return std::nullopt;
   }
+}
 
-  return 0;
+void CPU::execute(const Instruction &instr) {
+  if (std::holds_alternative<RType>(instr)) {
+    const auto &decoded_instr = std::get<RType>(instr);
+    switch (decoded_instr.funct3) {
+      case R_Funct3::ADD_SUB: {
+        switch (decoded_instr.funct7) {
+          case R_Funct7::ADD:
+            write_reg(decoded_instr.rd, read_reg(decoded_instr.rs1) + read_reg(decoded_instr.rs2));
+            PC += 4;
+            break;
+          default:
+            return;
+        }
+        break;
+        default:
+          break;
+      }
+    }
+  } else if (std::holds_alternative<IType>(instr)) {
+    const auto &decoded_instr = std::get<IType>(instr);
+    switch (decoded_instr.funct3) {
+      case I_Funct3::ADDI:
+        write_reg(decoded_instr.rd,
+                  read_reg(decoded_instr.rs1) + sign_extend(decoded_instr.imm, 12));
+        PC += 4;
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+std::int32_t CPU::sign_extend(std::uint32_t imm, std::uint32_t n) {
+  std::uint8_t sign = (imm >> (n - 1)) & 1;
+  return imm | (-sign << n);
 }

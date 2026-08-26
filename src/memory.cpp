@@ -11,10 +11,12 @@ Memory::Memory(const std::string &file) {
 
   char byte;
   while (mem.get(byte))
-    data.push_back(static_cast<byte_t>(byte));
+    data.push_back(static_cast<std::uint8_t>(byte));
 }
 
-word_t Memory::read_addr(word_t addr) const {
-  return static_cast<word_t>(data.at(addr)) | (static_cast<word_t>(data.at(addr + 1)) << 8) | (static_cast<word_t>(data.at(addr + 2)) << 16) |
-         (static_cast<word_t>(data.at(addr + 3)) << 24);
+std::uint32_t Memory::read_addr(std::uint32_t addr) const {
+  return static_cast<std::uint32_t>(data.at(addr)) |
+         (static_cast<std::uint32_t>(data.at(addr + 1)) << 8) |
+         (static_cast<std::uint32_t>(data.at(addr + 2)) << 16) |
+         (static_cast<std::uint32_t>(data.at(addr + 3)) << 24);
 }
