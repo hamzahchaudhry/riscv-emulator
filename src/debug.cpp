@@ -14,20 +14,20 @@ std::expected<void, Hart::Trap> trace_step(Hart &hart, Memory &memory) {
 
   if (!result) {
     if (instr)
-      std::println("pc={:#04x} {} TRAP", old_pc, disasm(*instr));
+      std::println("TRAP: pc=0x{:08x} raw=0x{:08x} {} next=0x{:08x}", old_pc, raw, disasm(*instr), hart.pc());
     else
-      std::println("pc={:#04x} instr={:#08x} illegal instruction", old_pc, raw);
+      std::println("pc=0x{:08x} raw=0x{:08x} {} next=0x{:08x}", old_pc, raw, disasm(*instr), hart.pc());
 
     return result;
   }
 
-  std::println("pc={:#04x} {} next={:#04x}", old_pc, disasm(*instr), hart.pc());
+  std::println("pc=0x{:08x}, raw=0x{:08x}, {}, next=0x{:08x}", old_pc, raw, disasm(*instr), hart.pc());
 
   for (u8 i = 1; i < 32; ++i) {
     const auto after = hart.registers().read(i);
 
     if (after != before.read(i))
-      std::println("x{}={}", i, after);
+      std::println("x{}: 0x{:08x} -> 0x{:08x}", i, before.read(i), after);
   }
 
   std::println();

@@ -3,7 +3,8 @@
 #include <fstream>
 #include <stdexcept>
 
-Memory::Memory(const std::string &file) {
+Memory::Memory(const std::string &file, u32 base)
+    : base_{base} {
   std::ifstream mem(file, std::ios::binary);
 
   if (!mem)
@@ -14,20 +15,31 @@ Memory::Memory(const std::string &file) {
     data_.push_back(static_cast<u8>(byte));
 }
 
-u8 Memory::read_byte(u32 addr) const {
-  return data_.at(addr);
+std::size_t Memory::index(u32 address) const {
+  if (address < base_)
+    throw std::out_of_range("address below memory base");
+
+  return static_cast<std::size_t>(address - base_);
 }
 
-u16 Memory::read_half(u32 addr) const {
-  return static_cast<u16>(data_.at(addr)) |
-         (static_cast<u16>(data_.at(addr + 1)) << 8);
+u8 Memory::read_byte(u32 address) const {
+  return data_.at(index(address));
 }
 
-u32 Memory::read_word(u32 addr) const {
-  return static_cast<u32>(data_.at(addr)) |
-         (static_cast<u32>(data_.at(addr + 1)) << 8) |
-         (static_cast<u32>(data_.at(addr + 2)) << 16) |
-         (static_cast<u32>(data_.at(addr + 3)) << 24);
+u16 Memory::read_half(u32 address) const {
+  const auto i = index(address);
+
+  return static_cast<u16>(data_.at(i)) |
+         static_cast<u16>(static_cast<u16>(data_.at(i + 1)) << 8);
+}
+
+u32 Memory::read_word(u32 address) const {
+  const auto i = index(address);
+
+  return static_cast<u32>(data_.at(i)) |
+         (static_cast<u32>(data_.at(i + 1)) << 8) |
+         (static_cast<u32>(data_.at(i + 2)) << 16) |
+         (static_cast<u32>(data_.at(i + 3)) << 24);
 }
 
 void Memory::write_byte(u32 addr, u8 byte) {

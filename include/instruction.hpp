@@ -122,7 +122,7 @@ struct BType {
 struct UType {
   Opcode opcode;
   u8 rd;
-  i32 imm;
+  u32 imm;
 };
 
 struct JType {

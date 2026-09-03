@@ -85,7 +85,7 @@ std::optional<Instruction> decode(u32 instr) {
     case Opcode::U_LUI:
     case Opcode::U_AUIPC: {
       const auto rd = static_cast<u8>((instr >> 7) & 0x1F);
-      const auto imm = sign_extend((instr >> 11), 33);
+      const auto imm = instr & 0xFFFFF000;
       return UType{opcode, rd, imm};
     }
 

@@ -1,4 +1,5 @@
 #include "disasm.hpp"
+#include "instruction.hpp"
 #include <format>
 
 std::string disasm(const Instruction &instr) {
@@ -159,6 +160,36 @@ std::string disasm(const Instruction &instr) {
       default:
         return "<illegal>";
     }
+  } else if (const auto *b = std::get_if<BType>(&instr)) {
+
+    switch (b->funct3) {
+      case B_Funct3::BEQ:
+        return std::format("beq x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      case B_Funct3::BNE:
+        return std::format("bne x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      case B_Funct3::BLT:
+        return std::format("blt x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      case B_Funct3::BGE:
+        return std::format("bge x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      case B_Funct3::BLTU:
+        return std::format("bltu x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      case B_Funct3::BGEU:
+        return std::format("bgeu x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+
+      default:
+        return "<illegal>";
+    }
+
+  } else if (const auto *j = std::get_if<JType>(&instr)) {
+    if (j->opcode == Opcode::J_JAL)
+      return std::format("jal x{}, {}", j->rd, j->imm);
+    else
+      return "<illegal>";
   }
 
   return "<unknown>";

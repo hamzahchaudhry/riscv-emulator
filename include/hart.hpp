@@ -7,6 +7,8 @@
 
 class Hart {
 public:
+  Hart(u32 reset_pc = 0) : pc_(reset_pc) {}
+
   enum class Trap {
     IllegalInstruction,
     EnvironmentCall,
