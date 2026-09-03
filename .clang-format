@@ -7,7 +7,7 @@ ContinuationIndentWidth: 4
 TabWidth: 8
 UseTab: Never
 
-ColumnLimit: 100
+ColumnLimit: 0
 BreakBeforeBraces: Attach
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
