@@ -13,7 +13,8 @@ enum class Opcode : u8 {
   J_JAL = 0b1101111,
   I_JALR = 0b1100111,
   U_LUI = 0b0110111,
-  U_AUIPC = 0b0010111
+  U_AUIPC = 0b0010111,
+  I_ENV = 0b1110011
 };
 
 enum class R_Funct3 : u8 {
@@ -65,6 +66,11 @@ enum class I_Funct7 : u8 {
   SRAI = 0x20
 };
 
+enum class I_ENV_Funct3 : u8 {
+  ECALL = 0x0,
+  EBREAK = 0x0
+};
+
 enum class B_Funct3 : u8 {
   BEQ = 0x0,
   BNE = 0x1,
@@ -92,7 +98,7 @@ struct RType {
 struct IType {
   Opcode opcode;
   u8 rd;
-  std::variant<I_Funct3, I_LOAD_Funct3> funct3;
+  std::variant<I_Funct3, I_LOAD_Funct3, I_ENV_Funct3> funct3;
   u8 rs1;
   i32 imm;
 };

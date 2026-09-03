@@ -8,7 +8,9 @@
 class Hart {
 public:
   enum class Trap {
-    IllegalInstruction
+    IllegalInstruction,
+    EnvironmentCall,
+    EnvironmentBreak
   };
 
   std::expected<void, Hart::Trap> step(Memory &memory);
@@ -29,4 +31,5 @@ private:
   std::expected<void, Trap> execute_u_type(const UType &instr);
   std::expected<void, Trap> execute_s_type(const SType &instr, Memory &memory);
   std::expected<void, Trap> execute_load(const IType &instr, Memory &memory);
+  std::expected<void, Trap> execute_env(const IType &instr);
 };

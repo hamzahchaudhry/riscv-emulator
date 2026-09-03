@@ -8,6 +8,12 @@ int main() {
   std::println("memory initialized to: {} bytes", mem.size());
   std::println();
 
-  for (int i = 0; i < 3; ++i)
-    trace_step(hart, mem);
+  for (int i = 0; i < 100'000; ++i) {
+    const auto result = trace_step(hart, mem);
+    if (!result) {
+      if (result.error() == Hart::Trap::EnvironmentCall)
+        break;
+      std::println("unexpected trap");
+    }
+  }
 }

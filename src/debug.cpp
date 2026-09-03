@@ -1,11 +1,10 @@
 #include "debug.hpp"
-
 #include "decoder.hpp"
 #include "disasm.hpp"
 
 #include <print>
 
-void trace_step(Hart &hart, Memory &memory) {
+std::expected<void, Hart::Trap> trace_step(Hart &hart, Memory &memory) {
   const auto old_pc = hart.pc();
   const auto raw = memory.read_word(old_pc);
   const auto instr = decode(raw);
@@ -14,8 +13,12 @@ void trace_step(Hart &hart, Memory &memory) {
   const auto result = hart.step(memory);
 
   if (!result) {
-    std::println("pc={:#04x} instr={:#08x} execution trap", old_pc, raw);
-    return;
+    if (instr)
+      std::println("pc={:#04x} {} TRAP", old_pc, disasm(*instr));
+    else
+      std::println("pc={:#04x} instr={:#08x} illegal instruction", old_pc, raw);
+
+    return result;
   }
 
   std::println("pc={:#04x} {} next={:#04x}", old_pc, disasm(*instr), hart.pc());
@@ -28,4 +31,5 @@ void trace_step(Hart &hart, Memory &memory) {
   }
 
   std::println();
+  return result;
 }

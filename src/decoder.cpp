@@ -36,6 +36,14 @@ std::optional<Instruction> decode(u32 instr) {
       return IType{opcode, rd, funct3, rs1, imm};
     }
 
+    case Opcode::I_ENV: {
+      const auto rd = static_cast<u8>((instr >> 7) & 0x1F);
+      const auto funct3 = static_cast<I_ENV_Funct3>((instr >> 12) & 0x7);
+      const auto rs1 = static_cast<u8>((instr >> 15) & 0x1F);
+      const auto imm = sign_extend((instr >> 20) & 0xFFF, 12);
+      return IType{opcode, rd, funct3, rs1, imm};
+    }
+
     case Opcode::S: {
       const auto funct3 = static_cast<S_Funct3>((instr >> 12) & 0x7);
       const auto rs1 = static_cast<u8>((instr >> 15) & 0x1F);

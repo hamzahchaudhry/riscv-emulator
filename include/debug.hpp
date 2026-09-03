@@ -3,4 +3,4 @@
 #include "hart.hpp"
 #include "memory.hpp"
 
-void trace_step(Hart &hart, Memory &memory);
+std::expected<void, Hart::Trap> trace_step(Hart &hart, Memory &memory);

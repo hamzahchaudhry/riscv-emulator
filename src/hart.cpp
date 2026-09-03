@@ -46,6 +46,8 @@ std::expected<u32, Hart::Trap> Hart::execute(const Instruction &instr, Memory &m
   if (const auto *i = std::get_if<IType>(&instr)) {
     if (i->opcode == Opcode::I_LOAD)
       return sequential(execute_load(*i, memory));
+    else if (i->opcode == Opcode::I_ENV)
+      return sequential(execute_env(*i));
     return sequential(execute_i_type(*i));
   }
 
@@ -273,6 +275,22 @@ std::expected<void, Hart::Trap> Hart::execute_s_type(const SType &instr, Memory 
     case S_Funct3::SW:
       memory.write_word(address, value);
       return {};
+
+    default:
+      return std::unexpected(Trap::IllegalInstruction);
+  }
+}
+
+std::expected<void, Hart::Trap> Hart::execute_env(const IType &instr) {
+  if (std::get<I_ENV_Funct3>(instr.funct3) != I_ENV_Funct3::ECALL)
+    return std::unexpected(Trap::IllegalInstruction);
+
+  switch (instr.imm) {
+    case 0:
+      return std::unexpected(Trap::EnvironmentCall);
+
+    case 1:
+      return std::unexpected(Trap::EnvironmentBreak);
 
     default:
       return std::unexpected(Trap::IllegalInstruction);

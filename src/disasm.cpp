@@ -133,6 +133,20 @@ std::string disasm(const Instruction &instr) {
         default:
           return "<illegal>";
       }
+    } else if (const auto *funct3 = std::get_if<I_ENV_Funct3>(&i->funct3)) {
+      if (*funct3 != I_ENV_Funct3::ECALL)
+        return "<illegal>";
+
+      switch (i->imm) {
+        case 0:
+          return "ecall";
+
+        case 1:
+          return "ebreak";
+
+        default:
+          return "<illegal>";
+      }
     }
   } else if (const auto *u = std::get_if<UType>(&instr)) {
     switch (u->opcode) {
