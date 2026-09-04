@@ -37,8 +37,8 @@ int main(int argc, char** argv) {
 
   rv32i_emu::Memory memory = std::move(*memory_result);
 
-  constexpr int MAX_CYCLES = 100'000;
-  for (int i = 0; i < MAX_CYCLES; ++i) {
+  constexpr int kMaxCycles = 100'000;
+  for (int i = 0; i < kMaxCycles; ++i) {
     const auto result = trace ? TraceStep(hart, memory) : hart.Step(memory);
 
     if (result) continue;
@@ -60,6 +60,6 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  std::println("MAX_CYCLES LIMIT HIT");
+  std::println("max cycles hit");
   return EXIT_FAILURE;
 }

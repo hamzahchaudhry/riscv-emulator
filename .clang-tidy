@@ -14,6 +14,7 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
   -readability-identifier-length,
+  -readability-magic-numbers,
 WarningsAsErrors: ['clang-analyzer-*']
 HeaderFilterRegex: '.*'
 CheckOptions:

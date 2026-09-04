@@ -36,8 +36,8 @@ std::expected<void, Hart::Trap> TraceStep(Hart& hart, Memory& memory) {
   std::println("pc=0x{:08x} raw=0x{:08x} {} next=0x{:08x}", old_pc, raw,
                instruction_text, hart.pc());
 
-  constexpr u8 REG_MAX = 32;
-  for (u8 i = 1; i < REG_MAX; ++i) {
+  constexpr u8 kRegisterCount = 32;
+  for (u8 i = 1; i < kRegisterCount; ++i) {
     const auto after = hart.registers().ReadRegister(i);
 
     if (after != before.ReadRegister(i))
