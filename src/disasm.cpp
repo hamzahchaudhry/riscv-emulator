@@ -3,193 +3,177 @@
 #include <format>
 
 std::string disasm(const Instruction &instr) {
-  if (const auto *r = std::get_if<RType>(&instr)) {
-    switch (r->funct3) {
-      case R_Funct3::ADD_SUB:
-        switch (r->funct7) {
-          case R_Funct7::ADD:
-            return std::format("add x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
+  if (const auto *r = std::get_if<RegisterInstruction>(&instr)) {
+    switch (r->op) {
+      case RegisterOp::Add:
+        return std::format("add x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-          case R_Funct7::SUB:
-            return std::format("sub x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
+      case RegisterOp::Sub:
+        return std::format("sub x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-          default:
-            return "<illegal>";
-        }
-        return "<illegal>";
-
-      case R_Funct3::XOR:
-        if (r->funct7 != R_Funct7::XOR)
-          return "<illegal>";
+      case RegisterOp::Xor:
         return std::format("xor x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case R_Funct3::OR:
-        if (r->funct7 != R_Funct7::OR)
-          return "<illegal>";
+      case RegisterOp::Or:
         return std::format("or x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case R_Funct3::AND:
-        if (r->funct7 != R_Funct7::AND)
-          return "<illegal>";
+      case RegisterOp::And:
         return std::format("and x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case R_Funct3::SLL:
-        if (r->funct7 != R_Funct7::SLL)
-          return "<illegal>";
+      case RegisterOp::Sll:
         return std::format("sll x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case R_Funct3::SRL_SRA:
-        switch (r->funct7) {
-          case R_Funct7::SRL:
-            return std::format("srl x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
+      case RegisterOp::Srl:
+        return std::format("srl x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-          case R_Funct7::SRA:
-            return std::format("sra x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
+      case RegisterOp::Sra:
+        return std::format("sra x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-          default:
-            return "<illegal>";
-        }
-        return "<illegal>";
-
-      case R_Funct3::SLT:
-        if (r->funct7 != R_Funct7::SLT)
-          return "<illegal>";
+      case RegisterOp::Slt:
         return std::format("slt x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case R_Funct3::SLTU:
-        if (r->funct7 != R_Funct7::SLTU)
-          return "<illegal>";
+      case RegisterOp::Sltu:
         return std::format("sltu x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
       default:
         return "<illegal>";
     }
+  }
 
-  } else if (const auto *i = std::get_if<IType>(&instr)) {
-    if (const auto *funct3 = std::get_if<I_Funct3>(&i->funct3)) {
-      switch (*funct3) {
-        case I_Funct3::ADDI:
-          return std::format("addi x{}, x{}, {}", i->rd, i->rs1, i->imm);
+  if (const auto *i = std::get_if<ImmediateInstruction>(&instr)) {
+    switch (i->op) {
+      case ImmediateOp::Addi:
+        return std::format("addi x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-        case I_Funct3::XORI:
-          return std::format("xori x{}, x{}, {}", i->rd, i->rs1, i->imm);
+      case ImmediateOp::Xori:
+        return std::format("xori x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-        case I_Funct3::ORI:
-          return std::format("ori x{}, x{}, {}", i->rd, i->rs1, i->imm);
+      case ImmediateOp::Ori:
+        return std::format("ori x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-        case I_Funct3::ANDI:
-          return std::format("andi x{}, x{}, {}", i->rd, i->rs1, i->imm);
+      case ImmediateOp::Andi:
+        return std::format("andi x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-        case I_Funct3::SLLI: {
-          const auto funct7 = static_cast<I_Funct7>((static_cast<u32>(i->imm) >> 5) & 0x7F);
-          const auto shamt = static_cast<u32>(i->imm) & 0x1F;
+      case ImmediateOp::Slti:
+        return std::format("slti x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-          if (funct7 != I_Funct7::SLLI)
-            return "<illegal>";
-          return std::format("slli x{}, x{}, {}", i->rd, i->rs1, shamt);
-        }
+      case ImmediateOp::Sltiu:
+        return std::format("sltiu x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-        case I_Funct3::SRLI_SRAI: {
-          const auto funct7 = static_cast<I_Funct7>((static_cast<u32>(i->imm) >> 5) & 0x7F);
-          const auto shamt = static_cast<u32>(i->imm) & 0x1F;
-
-          switch (funct7) {
-            case I_Funct7::SRLI:
-              return std::format("srli x{}, x{}, {}", i->rd, i->rs1, shamt);
-
-            case I_Funct7::SRAI:
-              return std::format("srai x{}, x{}, {}", i->rd, i->rs1, shamt);
-
-            default:
-              return "<illegal>";
-          }
-        }
-
-        case I_Funct3::SLTI:
-          return std::format("slti x{}, x{}, {}", i->rd, i->rs1, i->imm);
-
-        case I_Funct3::SLTIU:
-          return std::format("sltiu x{}, x{}, {}", i->rd, i->rs1, i->imm);
-
-        default:
-          return "<illegal>";
-      }
-    } else if (const auto *funct3 = std::get_if<I_LOAD_Funct3>(&i->funct3)) {
-      switch (*funct3) {
-        case I_LOAD_Funct3::LB:
-          return std::format("lb x{}, {}(x{})", i->rd, i->imm, i->rs1);
-
-        case I_LOAD_Funct3::LH:
-          return std::format("lh x{}, {}(x{})", i->rd, i->imm, i->rs1);
-
-        case I_LOAD_Funct3::LW:
-          return std::format("lw x{}, {}(x{})", i->rd, i->imm, i->rs1);
-
-        case I_LOAD_Funct3::LBU:
-          return std::format("lbu x{}, {}(x{})", i->rd, i->imm, i->rs1);
-
-        case I_LOAD_Funct3::LHU:
-          return std::format("lhu x{}, {}(x{})", i->rd, i->imm, i->rs1);
-
-        default:
-          return "<illegal>";
-      }
-    } else if (const auto *funct3 = std::get_if<I_ENV_Funct3>(&i->funct3)) {
-      if (*funct3 != I_ENV_Funct3::ECALL)
+      default:
         return "<illegal>";
-
-      switch (i->imm) {
-        case 0:
-          return "ecall";
-
-        case 1:
-          return "ebreak";
-
-        default:
-          return "<illegal>";
-      }
     }
-  } else if (const auto *u = std::get_if<UType>(&instr)) {
-    switch (u->opcode) {
-      case Opcode::U_LUI:
+  }
+
+  if (const auto *i = std::get_if<ShiftImmediateInstruction>(&instr)) {
+    switch (i->op) {
+      case ShiftImmediateOp::Slli:
+        return std::format("slli x{}, x{}, {}", i->rd, i->rs1, i->shamt);
+
+      case ShiftImmediateOp::Srli:
+        return std::format("srli x{}, x{}, {}", i->rd, i->rs1, i->shamt);
+
+      case ShiftImmediateOp::Srai:
+        return std::format("srai x{}, x{}, {}", i->rd, i->rs1, i->shamt);
+
+      default:
+        return "<illegal>";
+    }
+  }
+
+  if (const auto *i = std::get_if<LoadInstruction>(&instr)) {
+    switch (i->op) {
+      case LoadOp::Lb:
+        return std::format("lb x{}, {}(x{})", i->rd, i->offset, i->base);
+
+      case LoadOp::Lh:
+        return std::format("lh x{}, {}(x{})", i->rd, i->offset, i->base);
+
+      case LoadOp::Lw:
+        return std::format("lw x{}, {}(x{})", i->rd, i->offset, i->base);
+
+      case LoadOp::Lbu:
+        return std::format("lbu x{}, {}(x{})", i->rd, i->offset, i->base);
+
+      case LoadOp::Lhu:
+        return std::format("lhu x{}, {}(x{})", i->rd, i->offset, i->base);
+
+      default:
+        return "<illegal>";
+    }
+  }
+
+  if (const auto *s = std::get_if<StoreInstruction>(&instr)) {
+    switch (s->op) {
+      case StoreOp::Sb:
+        return std::format("sb x{}, {}(x{})", s->source, s->offset, s->base);
+
+      case StoreOp::Sh:
+        return std::format("sh x{}, {}(x{})", s->source, s->offset, s->base);
+
+      case StoreOp::Sw:
+        return std::format("sw x{}, {}(x{})", s->source, s->offset, s->base);
+
+      default:
+        return "<illegal>";
+    }
+  }
+
+  if (const auto *b = std::get_if<BranchInstruction>(&instr)) {
+    switch (b->op) {
+      case BranchOp::Beq:
+        return std::format("beq x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      case BranchOp::Bne:
+        return std::format("bne x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      case BranchOp::Blt:
+        return std::format("blt x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      case BranchOp::Bge:
+        return std::format("bge x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      case BranchOp::Bltu:
+        return std::format("bltu x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      case BranchOp::Bgeu:
+        return std::format("bgeu x{}, x{}, {}", b->rs1, b->rs2, b->offset);
+
+      default:
+        return "<illegal>";
+    }
+  }
+
+  if (const auto *j = std::get_if<Jal>(&instr))
+    return std::format("jal x{}, {}", j->rd, j->offset);
+
+  if (const auto *i = std::get_if<Jalr>(&instr))
+    return std::format("jalr x{}, {}(x{})", i->rd, i->offset, i->base);
+
+  if (const auto *u = std::get_if<UpperInstruction>(&instr)) {
+    switch (u->op) {
+      case UpperOp::Lui:
         return std::format("lui x{}, {}", u->rd, u->imm);
 
-      case Opcode::U_AUIPC:
+      case UpperOp::Auipc:
         return std::format("auipc x{}, {}", u->rd, u->imm);
 
       default:
         return "<illegal>";
     }
-  } else if (const auto *b = std::get_if<BType>(&instr)) {
+  }
 
-    switch (b->funct3) {
-      case B_Funct3::BEQ:
-        return std::format("beq x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+  if (const auto *i = std::get_if<SystemInstruction>(&instr)) {
+    switch (i->op) {
+      case SystemOp::Ecall:
+        return "ecall";
 
-      case B_Funct3::BNE:
-        return std::format("bne x{}, x{}, {}", b->rs1, b->rs2, b->imm);
-
-      case B_Funct3::BLT:
-        return std::format("blt x{}, x{}, {}", b->rs1, b->rs2, b->imm);
-
-      case B_Funct3::BGE:
-        return std::format("bge x{}, x{}, {}", b->rs1, b->rs2, b->imm);
-
-      case B_Funct3::BLTU:
-        return std::format("bltu x{}, x{}, {}", b->rs1, b->rs2, b->imm);
-
-      case B_Funct3::BGEU:
-        return std::format("bgeu x{}, x{}, {}", b->rs1, b->rs2, b->imm);
+      case SystemOp::Ebreak:
+        return "ebreak";
 
       default:
         return "<illegal>";
     }
-
-  } else if (const auto *j = std::get_if<JType>(&instr)) {
-    if (j->opcode == Opcode::J_JAL)
-      return std::format("jal x{}, {}", j->rd, j->imm);
-    else
-      return "<illegal>";
   }
 
   return "<unknown>";

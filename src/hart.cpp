@@ -1,4 +1,5 @@
 #include "hart.hpp"
+#include "bit_utils.hpp"
 #include "decoder.hpp"
 #include "instruction.hpp"
 
@@ -28,202 +29,267 @@ std::expected<u32, Hart::Trap> Hart::execute(const Instruction &instr, Memory &m
     return pc_ + 4;
   };
 
-  if (const auto *r = std::get_if<RType>(&instr))
-    return sequential(execute_r_type(*r));
+  if (const auto *r = std::get_if<RegisterInstruction>(&instr))
+    return sequential(execute_register(*r));
 
-  if (const auto *u = std::get_if<UType>(&instr))
-    return sequential(execute_u_type(*u));
+  if (const auto *i = std::get_if<ImmediateInstruction>(&instr))
+    return sequential(execute_immediate(*i));
 
-  if (const auto *s = std::get_if<SType>(&instr))
-    return sequential(execute_s_type(*s, memory));
+  if (const auto *i = std::get_if<ShiftImmediateInstruction>(&instr))
+    return sequential(execute_shift_immediate(*i));
 
-  if (const auto *b = std::get_if<BType>(&instr))
-    return execute_b_type(*b);
+  if (const auto *i = std::get_if<LoadInstruction>(&instr))
+    return sequential(execute_load(*i, memory));
 
-  if (const auto *j = std::get_if<JType>(&instr))
-    return execute_j_type(*j);
+  if (const auto *s = std::get_if<StoreInstruction>(&instr))
+    return sequential(execute_store(*s, memory));
 
-  if (const auto *i = std::get_if<IType>(&instr)) {
-    if (i->opcode == Opcode::I_LOAD)
-      return sequential(execute_load(*i, memory));
-    else if (i->opcode == Opcode::I_ENV)
-      return sequential(execute_env(*i));
-    return sequential(execute_i_type(*i));
-  }
+  if (const auto *b = std::get_if<BranchInstruction>(&instr))
+    return execute_branch(*b);
+
+  if (const auto *u = std::get_if<UpperInstruction>(&instr))
+    return sequential(execute_upper(*u));
+
+  if (const auto *j = std::get_if<Jal>(&instr))
+    return execute_jal(*j);
+
+  if (const auto *i = std::get_if<Jalr>(&instr))
+    return execute_jalr(*i);
+
+  if (const auto *i = std::get_if<SystemInstruction>(&instr))
+    return sequential(execute_system(*i));
 
   return std::unexpected(Trap::IllegalInstruction);
 }
 
-std::expected<void, Hart::Trap> Hart::execute_r_type(const RType &instr) {
-  switch (instr.funct3) {
-    case R_Funct3::ADD_SUB:
-      switch (instr.funct7) {
-        case R_Funct7::ADD:
-          registers_.write(instr.rd, registers_.read(instr.rs1) + registers_.read(instr.rs2));
-          return {};
+std::expected<void, Hart::Trap> Hart::execute_register(const RegisterInstruction &instr) {
+  const u32 rs1 = registers_.read(instr.rs1);
+  const u32 rs2 = registers_.read(instr.rs2);
+  u32 result;
 
-        case R_Funct7::SUB:
-          registers_.write(instr.rd, registers_.read(instr.rs1) - registers_.read(instr.rs2));
-          return {};
+  switch (instr.op) {
+    case RegisterOp::Add:
+      result = rs1 + rs2;
+      break;
 
-        default:
-          return std::unexpected(Trap::IllegalInstruction);
-      }
+    case RegisterOp::Sub:
+      result = rs1 - rs2;
+      break;
+
+    case RegisterOp::Xor:
+      result = rs1 ^ rs2;
+      break;
+
+    case RegisterOp::Or:
+      result = rs1 | rs2;
+      break;
+
+    case RegisterOp::And:
+      result = rs1 & rs2;
+      break;
+
+    case RegisterOp::Sll:
+      result = rs1 << (rs2 & 0x1F);
+      break;
+
+    case RegisterOp::Srl:
+      result = rs1 >> (rs2 & 0x1F);
+      break;
+
+    case RegisterOp::Sra:
+      result = static_cast<u32>(static_cast<i32>(rs1) >> (rs2 & 0x1F));
+      break;
+
+    case RegisterOp::Slt:
+      result = static_cast<i32>(rs1) < static_cast<i32>(rs2);
+      break;
+
+    case RegisterOp::Sltu:
+      result = rs1 < rs2;
+      break;
+
+    default:
       return std::unexpected(Trap::IllegalInstruction);
+  }
 
-    case R_Funct3::XOR:
-      if (instr.funct7 != R_Funct7::XOR)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, registers_.read(instr.rs1) ^ registers_.read(instr.rs2));
-      return {};
+  registers_.write(instr.rd, result);
+  return {};
+}
 
-    case R_Funct3::OR:
-      if (instr.funct7 != R_Funct7::OR)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, registers_.read(instr.rs1) | registers_.read(instr.rs2));
-      return {};
+std::expected<void, Hart::Trap> Hart::execute_immediate(const ImmediateInstruction &instr) {
+  const u32 rs1 = registers_.read(instr.rs1);
+  u32 result;
 
-    case R_Funct3::AND:
-      if (instr.funct7 != R_Funct7::AND)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, registers_.read(instr.rs1) & registers_.read(instr.rs2));
-      return {};
+  switch (instr.op) {
+    case ImmediateOp::Addi:
+      result = rs1 + instr.imm;
+      break;
 
-    case R_Funct3::SLL:
-      if (instr.funct7 != R_Funct7::SLL)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, registers_.read(instr.rs1) << registers_.read(instr.rs2));
-      return {};
+    case ImmediateOp::Xori:
+      result = rs1 ^ instr.imm;
+      break;
 
-    case R_Funct3::SRL_SRA:
-      switch (instr.funct7) {
-        case R_Funct7::SRL:
-          registers_.write(instr.rd, registers_.read(instr.rs1) >> (registers_.read(instr.rs2) & 0x1F));
-          return {};
+    case ImmediateOp::Ori:
+      result = rs1 | instr.imm;
+      break;
 
-        case R_Funct7::SRA:
-          registers_.write(instr.rd, static_cast<i32>(registers_.read(instr.rs1)) >> static_cast<i32>((registers_.read(instr.rs2) & 0x1F)));
-          return {};
+    case ImmediateOp::Andi:
+      result = rs1 & instr.imm;
+      break;
 
-        default:
-          return std::unexpected(Trap::IllegalInstruction);
-      }
+    case ImmediateOp::Slti:
+      result = static_cast<i32>(rs1) < instr.imm;
+      break;
+
+    case ImmediateOp::Sltiu:
+      result = (static_cast<u32>(rs1) < static_cast<u32>(instr.imm)) ? 1 : 0;
+      break;
+
+    default:
       return std::unexpected(Trap::IllegalInstruction);
+  }
 
-    case R_Funct3::SLT:
-      if (instr.funct7 != R_Funct7::SLT)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, (registers_.read(instr.rs1) < registers_.read(instr.rs2)) ? 1 : 0);
+  registers_.write(instr.rd, result);
+  return {};
+}
+
+std::expected<void, Hart::Trap> Hart::execute_shift_immediate(const ShiftImmediateInstruction &instr) {
+  const u32 rs1 = registers_.read(instr.rs1);
+  u32 result;
+
+  switch (instr.op) {
+    case ShiftImmediateOp::Slli:
+      result = rs1 << instr.shamt;
+      break;
+
+    case ShiftImmediateOp::Srli:
+      result = rs1 >> instr.shamt;
+      break;
+
+    case ShiftImmediateOp::Srai:
+      result = static_cast<u32>(static_cast<i32>(rs1) >> instr.shamt);
+      break;
+
+    default:
+      return std::unexpected(Trap::IllegalInstruction);
+  }
+
+  registers_.write(instr.rd, result);
+  return {};
+}
+
+std::expected<void, Hart::Trap> Hart::execute_load(const LoadInstruction &instr, Memory &memory) {
+  const u32 base = registers_.read(instr.base);
+  const u32 address = add_offset(base, instr.offset);
+  u32 result;
+
+  switch (instr.op) {
+    case LoadOp::Lb:
+      result = SignExtend<8>(memory.read_byte(address));
+      break;
+
+    case LoadOp::Lh:
+      result = SignExtend<16>(memory.read_half(address));
+      break;
+
+    case LoadOp::Lw:
+      result = memory.read_word(address);
+      break;
+
+    case LoadOp::Lbu:
+      result = memory.read_byte(address);
+      break;
+
+    case LoadOp::Lhu:
+      result = memory.read_half(address);
+      break;
+
+    default:
+      return std::unexpected(Trap::IllegalInstruction);
+  }
+
+  registers_.write(instr.rd, result);
+  return {};
+}
+
+std::expected<void, Hart::Trap> Hart::execute_store(const StoreInstruction &instr, Memory &memory) {
+  const u32 source = registers_.read(instr.source);
+  const u32 base = registers_.read(instr.base);
+  const u32 address = add_offset(base, instr.offset);
+
+  switch (instr.op) {
+    case StoreOp::Sb:
+      memory.write_byte(address, static_cast<u8>(source));
       return {};
 
-    case R_Funct3::SLTU:
-      if (instr.funct7 != R_Funct7::SLTU)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, (registers_.read(instr.rs1) < registers_.read(instr.rs2)) ? 1 : 0);
+    case StoreOp::Sh:
+      memory.write_half(address, static_cast<u16>(source));
+      return {};
+
+    case StoreOp::Sw:
+      memory.write_word(address, source);
       return {};
 
     default:
       return std::unexpected(Trap::IllegalInstruction);
   }
 }
+std::expected<u32, Hart::Trap> Hart::execute_branch(const BranchInstruction &instr) {
+  const u32 rs1 = registers_.read(instr.rs1);
+  const u32 rs2 = registers_.read(instr.rs2);
 
-std::expected<void, Hart::Trap> Hart::execute_i_type(const IType &instr) {
-  const u32 imm = static_cast<u32>(instr.imm);
-  switch (std::get<I_Funct3>(instr.funct3)) {
-    case I_Funct3::ADDI:
-      registers_.write(instr.rd, registers_.read(instr.rs1) + imm);
-      return {};
+  bool taken = false;
 
-    case I_Funct3::XORI:
-      registers_.write(instr.rd, registers_.read(instr.rs1) ^ imm);
-      return {};
+  switch (instr.op) {
+    case BranchOp::Beq:
+      taken = static_cast<i32>(rs1) == static_cast<i32>(rs2);
+      break;
 
-    case I_Funct3::ORI:
-      registers_.write(instr.rd, registers_.read(instr.rs1) | imm);
-      return {};
+    case BranchOp::Bne:
+      taken = static_cast<i32>(rs1) != static_cast<i32>(rs2);
+      break;
 
-    case I_Funct3::ANDI:
-      registers_.write(instr.rd, registers_.read(instr.rs1) & imm);
-      return {};
+    case BranchOp::Blt:
+      taken = static_cast<i32>(rs1) < static_cast<i32>(rs2);
+      break;
 
-    case I_Funct3::SLLI: {
-      const auto funct7 = static_cast<I_Funct7>((static_cast<u32>(instr.imm) >> 5) & 0x7F);
-      const auto shamt = static_cast<u32>(instr.imm) & 0x1F;
+    case BranchOp::Bge:
+      taken = static_cast<i32>(rs1) >= static_cast<i32>(rs2);
+      break;
 
-      if (funct7 != I_Funct7::SLLI)
-        return std::unexpected(Trap::IllegalInstruction);
-      registers_.write(instr.rd, registers_.read(instr.rs1) << (static_cast<u32>(instr.imm) & shamt));
-      return {};
-    }
+    case BranchOp::Bltu:
+      taken = rs1 < rs2;
+      break;
 
-    case I_Funct3::SRLI_SRAI: {
-      const auto funct7 = static_cast<I_Funct7>((static_cast<u32>(instr.imm) >> 5) & 0x7F);
-      const auto shamt = static_cast<u32>(instr.imm) & 0x1F;
-
-      switch (funct7) {
-        case I_Funct7::SRLI:
-          registers_.write(instr.rd, registers_.read(instr.rs1) >> shamt);
-          return {};
-
-        case I_Funct7::SRAI:
-          registers_.write(instr.rd, static_cast<u32>(static_cast<i32>(registers_.read(instr.rs1)) >> shamt));
-          return {};
-
-        default:
-          return std::unexpected(Trap::IllegalInstruction);
-      }
-    }
-
-    case I_Funct3::SLTI:
-      registers_.write(instr.rd, (registers_.read(instr.rs1) < instr.imm) ? 1 : 0);
-      return {};
-
-    case I_Funct3::SLTIU:
-      registers_.write(instr.rd, (static_cast<u32>(registers_.read(instr.rs1)) < static_cast<u32>(instr.imm)) ? 1 : 0);
-      return {};
+    case BranchOp::Bgeu:
+      taken = rs1 >= rs2;
+      break;
 
     default:
       return std::unexpected(Trap::IllegalInstruction);
   }
+
+  return add_offset(pc_, taken ? instr.offset : 4);
 }
 
-std::expected<u32, Hart::Trap> Hart::execute_b_type(const BType &instr) {
-  switch (instr.funct3) {
-    case B_Funct3::BEQ:
-      return add_offset(pc_, (static_cast<i32>(registers_.read(instr.rs1)) == static_cast<i32>(registers_.read(instr.rs2))) ? instr.imm : 4);
-
-    case B_Funct3::BNE:
-      return add_offset(pc_, (static_cast<i32>(registers_.read(instr.rs1)) != static_cast<i32>(registers_.read(instr.rs2))) ? instr.imm : 4);
-
-    case B_Funct3::BLT:
-      return add_offset(pc_, (static_cast<i32>(registers_.read(instr.rs1)) < static_cast<i32>(registers_.read(instr.rs2))) ? instr.imm : 4);
-
-    case B_Funct3::BGE:
-      return add_offset(pc_, (static_cast<i32>(registers_.read(instr.rs1)) >= static_cast<i32>(registers_.read(instr.rs2))) ? instr.imm : 4);
-
-    case B_Funct3::BLTU:
-      return add_offset(pc_, (registers_.read(instr.rs1) < registers_.read(instr.rs2)) ? instr.imm : 4);
-
-    case B_Funct3::BGEU:
-      return add_offset(pc_, (registers_.read(instr.rs1) >= registers_.read(instr.rs2)) ? instr.imm : 4);
-
-    default:
-      return std::unexpected(Trap::IllegalInstruction);
-  }
-}
-
-std::expected<u32, Hart::Trap> Hart::execute_j_type(const JType &instr) {
+std::expected<u32, Hart::Trap> Hart::execute_jal(const Jal &instr) {
   registers_.write(instr.rd, pc_ + 4);
-  return add_offset(pc_, instr.imm);
+  return add_offset(pc_, instr.offset);
 }
 
-std::expected<void, Hart::Trap> Hart::execute_u_type(const UType &instr) {
-  switch (instr.opcode) {
-    case Opcode::U_LUI:
+std::expected<u32, Hart::Trap> Hart::execute_jalr(const Jalr &instr) {
+  const u32 base = registers_.read(instr.base);
+  registers_.write(instr.rd, pc_ + 4);
+  return add_offset(base, instr.offset) & ~u32{1};
+}
+
+std::expected<void, Hart::Trap> Hart::execute_upper(const UpperInstruction &instr) {
+  switch (instr.op) {
+    case UpperOp::Lui:
       registers_.write(instr.rd, instr.imm);
       return {};
 
-    case Opcode::U_AUIPC:
+    case UpperOp::Auipc:
       registers_.write(instr.rd, pc_ + instr.imm);
       return {};
 
@@ -232,64 +298,12 @@ std::expected<void, Hart::Trap> Hart::execute_u_type(const UType &instr) {
   }
 }
 
-std::expected<void, Hart::Trap> Hart::execute_load(const IType &instr, Memory &memory) {
-  switch (std::get<I_LOAD_Funct3>(instr.funct3)) {
-    case I_LOAD_Funct3::LB:
-      registers_.write(instr.rd, memory.read_byte(registers_.read(instr.rs1) + instr.imm));
-      return {};
-
-    case I_LOAD_Funct3::LH:
-      registers_.write(instr.rd, memory.read_half(registers_.read(instr.rs1) + instr.imm));
-      return {};
-
-    case I_LOAD_Funct3::LW:
-      registers_.write(instr.rd, memory.read_word(registers_.read(instr.rs1) + instr.imm));
-      return {};
-
-    case I_LOAD_Funct3::LBU:
-      registers_.write(instr.rd, memory.read_byte(registers_.read(instr.rs1) + static_cast<u32>(instr.imm)));
-      return {};
-
-    case I_LOAD_Funct3::LHU:
-      registers_.write(instr.rd, memory.read_half(registers_.read(instr.rs1) + static_cast<u32>(instr.imm)));
-      return {};
-
-    default:
-      return std::unexpected(Trap::IllegalInstruction);
-  }
-}
-
-std::expected<void, Hart::Trap> Hart::execute_s_type(const SType &instr, Memory &memory) {
-  const u32 address = add_offset(registers_.read(instr.rs1), instr.imm);
-  const u32 value = registers_.read(instr.rs2);
-
-  switch (instr.funct3) {
-    case S_Funct3::SB:
-      memory.write_byte(address, static_cast<u8>(value));
-      return {};
-
-    case S_Funct3::SH:
-      memory.write_half(address, static_cast<u16>(value));
-      return {};
-
-    case S_Funct3::SW:
-      memory.write_word(address, value);
-      return {};
-
-    default:
-      return std::unexpected(Trap::IllegalInstruction);
-  }
-}
-
-std::expected<void, Hart::Trap> Hart::execute_env(const IType &instr) {
-  if (std::get<I_ENV_Funct3>(instr.funct3) != I_ENV_Funct3::ECALL)
-    return std::unexpected(Trap::IllegalInstruction);
-
-  switch (instr.imm) {
-    case 0:
+std::expected<void, Hart::Trap> Hart::execute_system(const SystemInstruction &instr) {
+  switch (instr.op) {
+    case SystemOp::Ecall:
       return std::unexpected(Trap::EnvironmentCall);
 
-    case 1:
+    case SystemOp::Ebreak:
       return std::unexpected(Trap::EnvironmentBreak);
 
     default:

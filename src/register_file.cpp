@@ -9,5 +9,5 @@ u32 RegisterFile::read(u8 index) const {
 
 void RegisterFile::write(u8 index, u32 val) {
   if (index > 0 && index < registers_.size())
-    registers_[index] = val;
+    registers_.at(index) = val;
 }

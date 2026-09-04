@@ -27,3 +27,8 @@ target_compile_options(riscv PRIVATE
   -Wconversion
   -Wsign-conversion
 )
+
+include(CTest)
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()

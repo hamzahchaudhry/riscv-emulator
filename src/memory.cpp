@@ -17,7 +17,7 @@ Memory::Memory(const std::string &file, u32 base)
 
 std::size_t Memory::index(u32 address) const {
   if (address < base_)
-    throw std::out_of_range("address below memory base");
+    throw std::out_of_range("addressess below memory base");
 
   return static_cast<std::size_t>(address - base_);
 }
@@ -42,18 +42,20 @@ u32 Memory::read_word(u32 address) const {
          (static_cast<u32>(data_.at(i + 3)) << 24);
 }
 
-void Memory::write_byte(u32 addr, u8 byte) {
-  data_[addr] = byte;
+void Memory::write_byte(u32 address, u8 byte) {
+  data_.at(index(address)) = byte;
 }
 
-void Memory::write_half(u32 addr, u16 half) {
-  data_[addr] = static_cast<u8>(half);
-  data_[addr + 1] = static_cast<u8>(half >> 8);
+void Memory::write_half(u32 address, u16 value) {
+  const auto i = index(address);
+  data_.at(i) = static_cast<u8>(value);
+  data_.at(i + 1) = static_cast<u8>(value >> 8);
 }
 
-void Memory::write_word(u32 addr, u32 word) {
-  data_[addr] = static_cast<u8>(word);
-  data_[addr + 1] = static_cast<u8>(word >> 8);
-  data_[addr + 2] = static_cast<u8>(word >> 16);
-  data_[addr + 3] = static_cast<u8>(word >> 24);
+void Memory::write_word(u32 address, u32 value) {
+  const auto i = index(address);
+  data_.at(i) = static_cast<u8>(value);
+  data_.at(i + 1) = static_cast<u8>(value >> 8);
+  data_.at(i + 2) = static_cast<u8>(value >> 16);
+  data_.at(i + 3) = static_cast<u8>(value >> 24);
 }

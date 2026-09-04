@@ -1,34 +1,50 @@
 #include "debug.hpp"
+
 #include <cstdlib>
 #include <print>
+#include <string_view>
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::println(stderr, "usage: riscv <test.bin>");
-    exit(EXIT_FAILURE);
+  if (argc < 2 || argc > 3) {
+    std::println(stderr, "usage: riscv <test.bin> [--trace]");
+    return EXIT_FAILURE;
+  }
+
+  const bool trace = argc == 3 && std::string_view{argv[2]} == "--trace";
+
+  if (argc == 3 && !trace) {
+    std::println(stderr, "unknown option: {}", argv[2]);
+    return EXIT_FAILURE;
   }
 
   constexpr u32 memory_base = 0x80000000;
+
   Hart hart(memory_base);
-  Memory mem(argv[1], memory_base);
+  Memory memory(argv[1], memory_base);
 
   for (int i = 0; i < 100'000; ++i) {
-    const auto result = trace_step(hart, mem);
-    if (!result) {
-      if (result.error() == Hart::Trap::EnvironmentCall) {
-        const u32 status = hart.registers().read(3);
+    const auto result = trace ? trace_step(hart, memory) : hart.step(memory);
 
-        if (status == 1) {
-          std::println("PASS");
-          exit(EXIT_SUCCESS);
-        }
+    if (result)
+      continue;
 
-        std::println("FAILED TEST: {}", status >> 1);
-        exit(EXIT_FAILURE);
+    if (result.error() == Hart::Trap::EnvironmentCall) {
+      // riscv-tests
+      const u32 status = hart.registers().read(3);
+
+      if (status == 1) {
+        std::println("PASS");
+        return EXIT_SUCCESS;
       }
-      std::println("unexpected trap");
+
+      std::println("FAILED TEST: {}", status >> 1);
+      return EXIT_FAILURE;
     }
+
+    std::println("unexpected trap");
+    return EXIT_FAILURE;
   }
+
   std::println("TIMEOUT");
-  exit(EXIT_FAILURE);
+  return EXIT_FAILURE;
 }
