@@ -6,13 +6,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 26)
 
 add_executable(riscv
-  src/main.cpp
-  src/hart.cpp
-  src/decoder.cpp
-  src/disasm.cpp
-  src/memory.cpp
-  src/register_file.cpp
-  src/debug.cpp
+  src/main.cc
+  src/hart.cc
+  src/decoder.cc
+  src/disassembler.cc
+  src/memory.cc
+  src/register_file.cc
+  src/trace.cc
 )
 
 target_include_directories(riscv
@@ -29,6 +29,4 @@ target_compile_options(riscv PRIVATE
 )
 
 include(CTest)
-if(BUILD_TESTING)
-  add_subdirectory(tests)
-endif()
+add_subdirectory(tests)

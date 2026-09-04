@@ -1,38 +1,43 @@
-#include "disasm.hpp"
-#include "instruction.hpp"
-#include <format>
+#include "disassembler.h"
 
-std::string disasm(const Instruction &instr) {
-  if (const auto *r = std::get_if<RegisterInstruction>(&instr)) {
-    switch (r->op) {
-      case RegisterOp::Add:
+#include <format>
+#include <variant>
+
+#include "instruction.h"
+
+namespace rv32i_emu {
+
+std::string Disassemble(const Instruction& instr) {
+  if (const auto* r = std::get_if<RegisterInstruction>(&instr)) {
+    switch (r->opcode) {
+      case RegisterOp::kAdd:
         return std::format("add x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Sub:
+      case RegisterOp::kSub:
         return std::format("sub x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Xor:
+      case RegisterOp::kXor:
         return std::format("xor x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Or:
+      case RegisterOp::kOr:
         return std::format("or x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::And:
+      case RegisterOp::kAnd:
         return std::format("and x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Sll:
+      case RegisterOp::kSll:
         return std::format("sll x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Srl:
+      case RegisterOp::kSrl:
         return std::format("srl x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Sra:
+      case RegisterOp::kSra:
         return std::format("sra x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Slt:
+      case RegisterOp::kSlt:
         return std::format("slt x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
-      case RegisterOp::Sltu:
+      case RegisterOp::kSltu:
         return std::format("sltu x{}, x{}, x{}", r->rd, r->rs1, r->rs2);
 
       default:
@@ -40,24 +45,24 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *i = std::get_if<ImmediateInstruction>(&instr)) {
-    switch (i->op) {
-      case ImmediateOp::Addi:
+  if (const auto* i = std::get_if<ImmediateInstruction>(&instr)) {
+    switch (i->opcode) {
+      case ImmediateOp::kAddi:
         return std::format("addi x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-      case ImmediateOp::Xori:
+      case ImmediateOp::kXori:
         return std::format("xori x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-      case ImmediateOp::Ori:
+      case ImmediateOp::kOri:
         return std::format("ori x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-      case ImmediateOp::Andi:
+      case ImmediateOp::kAndi:
         return std::format("andi x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-      case ImmediateOp::Slti:
+      case ImmediateOp::kSlti:
         return std::format("slti x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
-      case ImmediateOp::Sltiu:
+      case ImmediateOp::kSltiu:
         return std::format("sltiu x{}, x{}, {}", i->rd, i->rs1, i->imm);
 
       default:
@@ -65,15 +70,15 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *i = std::get_if<ShiftImmediateInstruction>(&instr)) {
-    switch (i->op) {
-      case ShiftImmediateOp::Slli:
+  if (const auto* i = std::get_if<ShiftImmediateInstruction>(&instr)) {
+    switch (i->opcode) {
+      case ShiftImmediateOp::kSlli:
         return std::format("slli x{}, x{}, {}", i->rd, i->rs1, i->shamt);
 
-      case ShiftImmediateOp::Srli:
+      case ShiftImmediateOp::kSrli:
         return std::format("srli x{}, x{}, {}", i->rd, i->rs1, i->shamt);
 
-      case ShiftImmediateOp::Srai:
+      case ShiftImmediateOp::kSrai:
         return std::format("srai x{}, x{}, {}", i->rd, i->rs1, i->shamt);
 
       default:
@@ -81,21 +86,21 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *i = std::get_if<LoadInstruction>(&instr)) {
-    switch (i->op) {
-      case LoadOp::Lb:
+  if (const auto* i = std::get_if<LoadInstruction>(&instr)) {
+    switch (i->opcode) {
+      case LoadOp::kLb:
         return std::format("lb x{}, {}(x{})", i->rd, i->offset, i->base);
 
-      case LoadOp::Lh:
+      case LoadOp::kLh:
         return std::format("lh x{}, {}(x{})", i->rd, i->offset, i->base);
 
-      case LoadOp::Lw:
+      case LoadOp::kLw:
         return std::format("lw x{}, {}(x{})", i->rd, i->offset, i->base);
 
-      case LoadOp::Lbu:
+      case LoadOp::kLbu:
         return std::format("lbu x{}, {}(x{})", i->rd, i->offset, i->base);
 
-      case LoadOp::Lhu:
+      case LoadOp::kLhu:
         return std::format("lhu x{}, {}(x{})", i->rd, i->offset, i->base);
 
       default:
@@ -103,15 +108,15 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *s = std::get_if<StoreInstruction>(&instr)) {
-    switch (s->op) {
-      case StoreOp::Sb:
+  if (const auto* s = std::get_if<StoreInstruction>(&instr)) {
+    switch (s->opcode) {
+      case StoreOp::kSb:
         return std::format("sb x{}, {}(x{})", s->source, s->offset, s->base);
 
-      case StoreOp::Sh:
+      case StoreOp::kSh:
         return std::format("sh x{}, {}(x{})", s->source, s->offset, s->base);
 
-      case StoreOp::Sw:
+      case StoreOp::kSw:
         return std::format("sw x{}, {}(x{})", s->source, s->offset, s->base);
 
       default:
@@ -119,24 +124,24 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *b = std::get_if<BranchInstruction>(&instr)) {
-    switch (b->op) {
-      case BranchOp::Beq:
+  if (const auto* b = std::get_if<BranchInstruction>(&instr)) {
+    switch (b->opcode) {
+      case BranchOp::kBeq:
         return std::format("beq x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
-      case BranchOp::Bne:
+      case BranchOp::kBne:
         return std::format("bne x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
-      case BranchOp::Blt:
+      case BranchOp::kBlt:
         return std::format("blt x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
-      case BranchOp::Bge:
+      case BranchOp::kBge:
         return std::format("bge x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
-      case BranchOp::Bltu:
+      case BranchOp::kBltu:
         return std::format("bltu x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
-      case BranchOp::Bgeu:
+      case BranchOp::kBgeu:
         return std::format("bgeu x{}, x{}, {}", b->rs1, b->rs2, b->offset);
 
       default:
@@ -144,18 +149,18 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *j = std::get_if<Jal>(&instr))
+  if (const auto* j = std::get_if<Jal>(&instr))
     return std::format("jal x{}, {}", j->rd, j->offset);
 
-  if (const auto *i = std::get_if<Jalr>(&instr))
+  if (const auto* i = std::get_if<Jalr>(&instr))
     return std::format("jalr x{}, {}(x{})", i->rd, i->offset, i->base);
 
-  if (const auto *u = std::get_if<UpperInstruction>(&instr)) {
-    switch (u->op) {
-      case UpperOp::Lui:
+  if (const auto* u = std::get_if<UpperInstruction>(&instr)) {
+    switch (u->opcode) {
+      case UpperOp::kLui:
         return std::format("lui x{}, {}", u->rd, u->imm);
 
-      case UpperOp::Auipc:
+      case UpperOp::kAuipc:
         return std::format("auipc x{}, {}", u->rd, u->imm);
 
       default:
@@ -163,12 +168,12 @@ std::string disasm(const Instruction &instr) {
     }
   }
 
-  if (const auto *i = std::get_if<SystemInstruction>(&instr)) {
-    switch (i->op) {
-      case SystemOp::Ecall:
+  if (const auto* i = std::get_if<SystemInstruction>(&instr)) {
+    switch (i->opcode) {
+      case SystemOp::kEcall:
         return "ecall";
 
-      case SystemOp::Ebreak:
+      case SystemOp::kEbreak:
         return "ebreak";
 
       default:
@@ -178,3 +183,5 @@ std::string disasm(const Instruction &instr) {
 
   return "<unknown>";
 }
+
+}  // namespace rv32i_emu

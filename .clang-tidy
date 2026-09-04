@@ -1,0 +1,20 @@
+Checks: >
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  cppcoreguidelines-*,
+  google-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -google-readability-braces-around-statements,
+  -modernize-use-trailing-return-type,
+  -readability-braces-around-statements,
+  -readability-identifier-length,
+WarningsAsErrors: ['clang-analyzer-*']
+HeaderFilterRegex: '.*'
+CheckOptions:
+  readability-function-cognitive-complexity.Threshold: 26
