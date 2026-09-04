@@ -7,18 +7,7 @@
 
 namespace rv32i_emu {
 
-enum class RegisterOp : u8 {
-  kAdd,
-  kSub,
-  kXor,
-  kOr,
-  kAnd,
-  kSll,
-  kSrl,
-  kSra,
-  kSlt,
-  kSltu
-};
+enum class RegisterOp : u8 { kAdd, kSub, kXor, kOr, kAnd, kSll, kSrl, kSra, kSlt, kSltu };
 
 enum class ImmediateOp : u8 { kAddi, kXori, kOri, kAndi, kSlti, kSltiu };
 
@@ -98,15 +87,16 @@ struct UpperInstruction {
   u32 imm;
 };
 
+struct Fence {};
+
 struct SystemInstruction {
   SystemOp opcode;
 };
 
 using Instruction =
-    std::variant<RegisterInstruction, ImmediateInstruction,
-                 ShiftImmediateInstruction, LoadInstruction, StoreInstruction,
-                 BranchInstruction, UpperInstruction, Jal, Jalr,
-                 SystemInstruction>;
+    std::variant<RegisterInstruction, ImmediateInstruction, ShiftImmediateInstruction,
+                 LoadInstruction, StoreInstruction, BranchInstruction, UpperInstruction, Jal, Jalr,
+                 Fence, SystemInstruction>;
 
 }  // namespace rv32i_emu
 

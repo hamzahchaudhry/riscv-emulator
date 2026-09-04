@@ -27,10 +27,8 @@ std::expected<void, Hart::Trap> Hart::Step(Memory& memory) {
   return {};
 }
 
-std::expected<u32, Hart::Trap> Hart::Execute(const Instruction& instr,
-                                             Memory& memory) {
-  const auto sequential =
-      [this](std::expected<void, Trap> result) -> std::expected<u32, Trap> {
+std::expected<u32, Hart::Trap> Hart::Execute(const Instruction& instr, Memory& memory) {
+  const auto sequential = [this](std::expected<void, Trap> result) -> std::expected<u32, Trap> {
     if (!result) return std::unexpected(result.error());
     return pc_ + 4;
   };
@@ -50,24 +48,22 @@ std::expected<u32, Hart::Trap> Hart::Execute(const Instruction& instr,
   if (const auto* s = std::get_if<StoreInstruction>(&instr))
     return sequential(ExecuteStore(*s, memory));
 
-  if (const auto* b = std::get_if<BranchInstruction>(&instr))
-    return ExecuteBranch(*b);
+  if (const auto* b = std::get_if<BranchInstruction>(&instr)) return ExecuteBranch(*b);
 
-  if (const auto* u = std::get_if<UpperInstruction>(&instr))
-    return sequential(ExecuteUpper(*u));
+  if (const auto* u = std::get_if<UpperInstruction>(&instr)) return sequential(ExecuteUpper(*u));
 
   if (const auto* j = std::get_if<Jal>(&instr)) return ExecuteJal(*j);
 
   if (const auto* i = std::get_if<Jalr>(&instr)) return ExecuteJalr(*i);
 
-  if (const auto* i = std::get_if<SystemInstruction>(&instr))
-    return sequential(ExecuteSystem(*i));
+  if (std::holds_alternative<Fence>(instr)) return pc_ + 4;
+
+  if (const auto* i = std::get_if<SystemInstruction>(&instr)) return sequential(ExecuteSystem(*i));
 
   return std::unexpected(Trap::kIllegalInstruction);
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteRegister(
-    const RegisterInstruction& instr) {
+std::expected<void, Hart::Trap> Hart::ExecuteRegister(const RegisterInstruction& instr) {
   const u32 rs1 = registers_.ReadRegister(instr.rs1);
   const u32 rs2 = registers_.ReadRegister(instr.rs2);
   u32 result = 0;
@@ -121,8 +117,7 @@ std::expected<void, Hart::Trap> Hart::ExecuteRegister(
   return {};
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteImmediate(
-    const ImmediateInstruction& instr) {
+std::expected<void, Hart::Trap> Hart::ExecuteImmediate(const ImmediateInstruction& instr) {
   const u32 rs1 = registers_.ReadRegister(instr.rs1);
   const u32 imm = std::bit_cast<u32>(instr.imm);
   u32 result = 0;
@@ -186,8 +181,7 @@ std::expected<void, Hart::Trap> Hart::ExecuteShiftImmediate(
   return {};
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteLoad(const LoadInstruction& instr,
-                                                  Memory& memory) {
+std::expected<void, Hart::Trap> Hart::ExecuteLoad(const LoadInstruction& instr, Memory& memory) {
   const u32 base = registers_.ReadRegister(instr.base);
   const u32 address = AddOffset(base, instr.offset);
   u32 result = 0;
@@ -241,8 +235,7 @@ std::expected<void, Hart::Trap> Hart::ExecuteLoad(const LoadInstruction& instr,
   return {};
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteStore(
-    const StoreInstruction& instr, Memory& memory) {
+std::expected<void, Hart::Trap> Hart::ExecuteStore(const StoreInstruction& instr, Memory& memory) {
   const u32 source = registers_.ReadRegister(instr.source);
   const u32 base = registers_.ReadRegister(instr.base);
   const u32 address = AddOffset(base, instr.offset);
@@ -271,8 +264,7 @@ std::expected<void, Hart::Trap> Hart::ExecuteStore(
   }
 }
 
-std::expected<u32, Hart::Trap> Hart::ExecuteBranch(
-    const BranchInstruction& instr) {
+std::expected<u32, Hart::Trap> Hart::ExecuteBranch(const BranchInstruction& instr) {
   const u32 rs1 = registers_.ReadRegister(instr.rs1);
   const u32 rs2 = registers_.ReadRegister(instr.rs2);
 
@@ -321,8 +313,7 @@ std::expected<u32, Hart::Trap> Hart::ExecuteJalr(const Jalr& instr) {
   return AddOffset(base, instr.offset) & ~u32{1};
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteUpper(
-    const UpperInstruction& instr) {
+std::expected<void, Hart::Trap> Hart::ExecuteUpper(const UpperInstruction& instr) {
   switch (instr.opcode) {
     case UpperOp::kLui:
       registers_.WriteRegister(instr.rd, instr.imm);
@@ -337,8 +328,7 @@ std::expected<void, Hart::Trap> Hart::ExecuteUpper(
   }
 }
 
-std::expected<void, Hart::Trap> Hart::ExecuteSystem(
-    const SystemInstruction& instr) {
+std::expected<void, Hart::Trap> Hart::ExecuteSystem(const SystemInstruction& instr) {
   switch (instr.opcode) {
     case SystemOp::kEcall:
       return std::unexpected(Trap::kEnvironmentCall);

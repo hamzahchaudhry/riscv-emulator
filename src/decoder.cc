@@ -20,6 +20,7 @@ enum class Opcode : u8 {
   kJalr = 0b1100111,
   kLui = 0b0110111,
   kAuipc = 0b0010111,
+  kFence = 0b0001111,
   kSystem = 0b1110011
 };
 
@@ -60,13 +61,7 @@ enum class ImmediateFunct3 : u8 {
 
 enum class ImmediateFunct7 : u8 { kSlli = 0x00, kSrli = 0x00, kSrai = 0x20 };
 
-enum class LoadFunct3 : u8 {
-  kLb = 0x0,
-  kLh = 0x1,
-  kLw = 0x2,
-  kLbu = 0x4,
-  kLhu = 0x5
-};
+enum class LoadFunct3 : u8 { kLb = 0x0, kLh = 0x1, kLw = 0x2, kLbu = 0x4, kLhu = 0x5 };
 
 enum class BranchFunct3 : u8 {
   kBeq = 0x0,
@@ -287,8 +282,7 @@ std::optional<BranchInstruction> DecodeBranch(u32 raw) {
   const auto funct3 = static_cast<BranchFunct3>(Bits<12, 14>(raw));
   const u8 rs1 = static_cast<u8>(Bits<15, 19>(raw));
   const u8 rs2 = static_cast<u8>(Bits<20, 24>(raw));
-  const u32 encoded_offset = (Bits<31, 31>(raw) << 12) |
-                             (Bits<7, 7>(raw) << 11) |
+  const u32 encoded_offset = (Bits<31, 31>(raw) << 12) | (Bits<7, 7>(raw) << 11) |
                              (Bits<25, 30>(raw) << 5) | (Bits<8, 11>(raw) << 1);
   const i32 offset = std::bit_cast<i32>(SignExtend<13>(encoded_offset));
 
@@ -351,9 +345,8 @@ std::optional<UpperInstruction> DecodeUpper(u32 raw, UpperOp opcode) {
 
 std::optional<Jal> DecodeJal(u32 raw) {
   const u8 rd = static_cast<u8>(Bits<7, 11>(raw));
-  const u32 encoded_offset =
-      (Bits<31, 31>(raw) << 20) | (Bits<12, 19>(raw) << 12) |
-      (Bits<20, 20>(raw) << 11) | (Bits<21, 30>(raw) << 1);
+  const u32 encoded_offset = (Bits<31, 31>(raw) << 20) | (Bits<12, 19>(raw) << 12) |
+                             (Bits<20, 20>(raw) << 11) | (Bits<21, 30>(raw) << 1);
   const i32 offset = std::bit_cast<i32>(SignExtend<21>(encoded_offset));
 
   return Jal{
@@ -377,21 +370,22 @@ std::optional<Jalr> DecodeJalr(u32 raw) {
   return std::nullopt;
 }
 
+std::optional<Fence> DecodeFence(u32 raw) {
+  if (Bits<12, 14>(raw) != 0) return std::nullopt;
+  return Fence{};
+}
+
 std::optional<SystemInstruction> DecodeSystem(u32 raw) {
-  const u8 funct3 = static_cast<u8>(Bits<12, 14>(raw));
-  const i32 imm = std::bit_cast<i32>(SignExtend<12>(Bits<20, 31>(raw)));
+  switch (raw) {
+    case 0x00000073:
+      return SystemInstruction{.opcode = SystemOp::kEcall};
 
-  if (funct3 == 0x0) switch (imm) {
-      case 0x0:
-        return SystemInstruction{.opcode = SystemOp::kEcall};
+    case 0x00100073:
+      return SystemInstruction{.opcode = SystemOp::kEbreak};
 
-      case 0x1:
-        return SystemInstruction{.opcode = SystemOp::kEbreak};
-
-      default:
-        return std::nullopt;
-    }
-  return std::nullopt;
+    default:
+      return std::nullopt;
+  }
 }
 
 }  // namespace
@@ -431,6 +425,9 @@ std::optional<Instruction> Decode(u32 raw) {
 
     case Opcode::kJalr:
       return DecodeJalr(raw);
+
+    case Opcode::kFence:
+      return DecodeFence(raw);
 
     case Opcode::kSystem:
       return DecodeSystem(raw);

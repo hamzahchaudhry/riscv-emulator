@@ -149,8 +149,7 @@ std::string Disassemble(const Instruction& instr) {
     }
   }
 
-  if (const auto* j = std::get_if<Jal>(&instr))
-    return std::format("jal x{}, {}", j->rd, j->offset);
+  if (const auto* j = std::get_if<Jal>(&instr)) return std::format("jal x{}, {}", j->rd, j->offset);
 
   if (const auto* i = std::get_if<Jalr>(&instr))
     return std::format("jalr x{}, {}(x{})", i->rd, i->offset, i->base);
@@ -167,6 +166,8 @@ std::string Disassemble(const Instruction& instr) {
         return "<illegal>";
     }
   }
+
+  if (std::holds_alternative<Fence>(instr)) return "fence";
 
   if (const auto* i = std::get_if<SystemInstruction>(&instr)) {
     switch (i->opcode) {

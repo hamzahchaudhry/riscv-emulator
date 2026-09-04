@@ -5,26 +5,26 @@
 
 namespace rv32i_emu {
 
-std::expected<Memory, Memory::Error> Memory::LoadFile(const std::string& file,
-                                                      u32 base) {
+std::expected<void, Memory::Error> Memory::LoadBinary(const std::string& file, u32 address) {
   std::ifstream input(file, std::ios::binary);
 
   if (!input) {
     return std::unexpected(Error::kFileOpenFailed);
   }
 
-  Memory memory(base);
+  u32 current_address = address;
   char byte = 0;
 
   while (input.get(byte)) {
-    memory.data_.push_back(static_cast<u8>(byte));
+    const auto result = WriteByte(current_address, static_cast<u8>(byte));
+    if (!result) return std::unexpected(result.error());
+    ++current_address;
   }
 
-  return memory;
+  return {};
 }
 
-std::expected<std::size_t, Memory::Error> Memory::Index(u32 address,
-                                                        u8 size) const {
+std::expected<std::size_t, Memory::Error> Memory::Index(u32 address, u8 size) const {
   if (address < base_) return std::unexpected(Error::kAddressOutOfRange);
 
   const auto index = static_cast<std::size_t>(address - base_);
@@ -64,14 +64,12 @@ std::expected<u32, Memory::Error> Memory::ReadWord(u32 address) const {
     return std::unexpected(index.error());
   }
 
-  return static_cast<u32>(data_.at(*index)) |
-         (static_cast<u32>(data_.at(*index + 1)) << 8) |
+  return static_cast<u32>(data_.at(*index)) | (static_cast<u32>(data_.at(*index + 1)) << 8) |
          (static_cast<u32>(data_.at(*index + 2)) << 16) |
          (static_cast<u32>(data_.at(*index + 3)) << 24);
 }
 
-[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteByte(u32 address,
-                                                                   u8 byte) {
+[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteByte(u32 address, u8 byte) {
   const auto index = Index(address, 1);
 
   if (!index) {
@@ -82,8 +80,7 @@ std::expected<u32, Memory::Error> Memory::ReadWord(u32 address) const {
   return {};
 }
 
-[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteHalf(u32 address,
-                                                                   u16 half) {
+[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteHalf(u32 address, u16 half) {
   const auto index = Index(address, 2);
 
   if (!index) {
@@ -95,8 +92,7 @@ std::expected<u32, Memory::Error> Memory::ReadWord(u32 address) const {
   return {};
 }
 
-[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteWord(u32 address,
-                                                                   u32 word) {
+[[nodiscard]] std::expected<void, Memory::Error> Memory::WriteWord(u32 address, u32 word) {
   const auto index = Index(address, 4);
 
   if (!index) {

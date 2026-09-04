@@ -1,8 +1,8 @@
+#include <cstddef>
 #include <cstdlib>
 #include <print>
 #include <span>
 #include <string_view>
-#include <utility>
 
 #include "hart.h"
 #include "memory.h"
@@ -17,25 +17,26 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  const bool trace =
-      args.size() == 3 && std::string_view{args.at(2)} == "--trace";
+  const bool trace = args.size() == 3 && std::string_view{args.at(2)} == "--trace";
 
   if (args.size() == 3 && !trace) {
     std::println(stderr, "unknown option: {}", args.at(2));
     return EXIT_FAILURE;
   }
 
-  constexpr rv32i_emu::u32 memory_base = 0x80000000;
+  constexpr rv32i_emu::u32 kMemoryBase = 0x80000000;
+  constexpr auto kMemorySize = static_cast<std::size_t>(64 * 1024 * 1024);
 
-  rv32i_emu::Hart hart(memory_base);
-  auto memory_result = rv32i_emu::Memory::LoadFile(args.at(1), memory_base);
+  rv32i_emu::Memory memory(kMemoryBase, kMemorySize);
 
-  if (!memory_result) {
-    std::println("failed to open file: {}", args.at(1));
+  const auto load_result = memory.LoadBinary(args.at(1), kMemoryBase);
+
+  if (!load_result) {
+    std::println(stderr, "failed to load file: {}", args.at(1));
     return EXIT_FAILURE;
   }
 
-  rv32i_emu::Memory memory = std::move(*memory_result);
+  rv32i_emu::Hart hart(kMemoryBase);
 
   constexpr int kMaxCycles = 100'000;
   for (int i = 0; i < kMaxCycles; ++i) {

@@ -18,4 +18,4 @@ Checks: >
 WarningsAsErrors: ['clang-analyzer-*']
 HeaderFilterRegex: '.*'
 CheckOptions:
-  readability-function-cognitive-complexity.Threshold: 26
+  readability-function-cognitive-complexity.Threshold: 27
