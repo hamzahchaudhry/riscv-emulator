@@ -1,8 +1,11 @@
 #include "debugger.h"
 
+#include <charconv>
 #include <iostream>
 #include <print>
+#include <sstream>
 #include <string>
+#include <string_view>
 
 #include "decoder.h"
 #include "disassembler.h"
@@ -10,7 +13,7 @@
 
 namespace rv32i_emu {
 
-void Debugger::Run() {
+Debugger::ExitReason Debugger::Run() {
   std::string previous_command;
 
   PrintCurrentInstruction();
@@ -21,24 +24,46 @@ void Debugger::Run() {
     std::string line;
     if (!std::getline(std::cin, line)) {
       std::println();
-      return;
+      return ExitReason::kQuit;
     }
 
     if (line.empty()) line = previous_command;
 
-    if (line == "s" || line == "step") {
+    std::istringstream input(line);
+    std::string command;
+    input >> command;
+
+    if (command.empty()) continue;
+
+    if (command == "b" || command == "break") {
+      std::string address_argument;
+      std::string extra_argument;
+
+      if (!(input >> address_argument) || input >> extra_argument) {
+        std::println("usage: b[reak] <hex address>");
+        continue;
+      }
+
+      AddBreakpoint(address_argument);
+      previous_command.clear();
+      continue;
+    }
+
+    if (command == "s" || command == "step") {
       previous_command = Step() ? "s" : "";
-    } else if (line == "c" || line == "continue") {
+    } else if (command == "c" || command == "continue") {
       Continue();
       previous_command.clear();
-    } else if (line == "r" || line == "regs") {
+    } else if (command == "regs") {
       PrintRegisters();
-      previous_command = "r";
-    } else if (line == "pc") {
+      previous_command = "regs";
+    } else if (command == "r" || command == "restart") {
+      return ExitReason::kRestart;
+    } else if (command == "pc") {
       std::println("pc: {:#010x}", hart_.pc());
       previous_command = "pc";
-    } else if (line == "q" || line == "quit")
-      return;
+    } else if (command == "q" || command == "quit")
+      return ExitReason::kQuit;
     else
       std::println("huh?");
 
@@ -81,7 +106,44 @@ void Debugger::Continue() {
       PrintInstruction(old_pc, "trapped");
       return;
     }
+
+    if (breakpoints_.contains(hart_.pc())) {
+      std::println("breakpoint hit at {:#010x}", hart_.pc());
+      PrintCurrentInstruction();
+      return;
+    }
   }
+}
+
+void Debugger::AddBreakpoint(std::string_view address_argument) {
+  std::string_view address_text = address_argument;
+  if (address_text.starts_with("0x") || address_text.starts_with("0X")) {
+    address_text.remove_prefix(2);
+  }
+
+  u32 address = 0;
+  const auto [end, error] =
+      std::from_chars(address_text.data(), address_text.data() + address_text.size(), address, 16);
+
+  if (error != std::errc{} || end != address_text.data() + address_text.size()) {
+    std::println("invalid address: {}", address_argument);
+    return;
+  }
+
+  if (!IsValidAddress(address)) {
+    std::println("invalid breakpoint address: {:#010x}", address);
+    return;
+  }
+
+  const auto [unused, inserted] = breakpoints_.insert(address);
+  if (inserted)
+    std::println("breakpoint set at {:#010x}", address);
+  else
+    std::println("breakpoint already exists at {:#010x}", address);
+}
+
+bool Debugger::IsValidAddress(u32 address) const {
+  return address % 4 == 0 && memory_.ReadWord(address).has_value();
 }
 
 void Debugger::PrintRegisters() const {

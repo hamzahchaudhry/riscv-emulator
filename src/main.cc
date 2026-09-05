@@ -27,8 +27,27 @@ int main(int argc, char** argv) {
   constexpr rv32i_emu::u32 kMemoryBase = 0x80000000;
   constexpr auto kMemorySize = static_cast<std::size_t>(64 * 1024 * 1024);
 
-  rv32i_emu::Memory memory(kMemoryBase, kMemorySize);
+  if (debug) {
+    while (true) {
+      rv32i_emu::Memory debug_memory(kMemoryBase, kMemorySize);
 
+      const auto result = debug_memory.LoadBinary(args.at(1), kMemoryBase);
+
+      if (!result) {
+        std::println(stderr, "failed to load file: {}", args.at(1));
+        return EXIT_FAILURE;
+      }
+
+      rv32i_emu::Hart debug_hart(kMemoryBase);
+      rv32i_emu::Debugger debugger(debug_hart, debug_memory);
+
+      if (debugger.Run() == rv32i_emu::Debugger::ExitReason::kQuit) {
+        return EXIT_SUCCESS;
+      }
+    }
+  }
+
+  rv32i_emu::Memory memory(kMemoryBase, kMemorySize);
   const auto load_result = memory.LoadBinary(args.at(1), kMemoryBase);
 
   if (!load_result) {
@@ -37,12 +56,6 @@ int main(int argc, char** argv) {
   }
 
   rv32i_emu::Hart hart(kMemoryBase);
-
-  if (debug) {
-    rv32i_emu::Debugger debugger(hart, memory);
-    debugger.Run();
-    return EXIT_SUCCESS;
-  }
 
   constexpr int kMaxCycles = 100'000;
   for (int i = 0; i < kMaxCycles; ++i) {
