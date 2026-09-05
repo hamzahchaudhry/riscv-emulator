@@ -4,22 +4,22 @@
 #include <span>
 #include <string_view>
 
+#include "debugger.h"
 #include "hart.h"
 #include "memory.h"
-#include "trace.h"
 #include "types.h"
 
 int main(int argc, char** argv) {
   std::span<char*> args{argv, static_cast<std::size_t>(argc)};
 
   if (argc < 2 || argc > 3) {
-    std::println(stderr, "usage: riscv <test.bin> [--trace]");
+    std::println(stderr, "usage: riscv <test.bin> [--debug]");
     return EXIT_FAILURE;
   }
 
-  const bool trace = args.size() == 3 && std::string_view{args.at(2)} == "--trace";
+  const bool debug = args.size() == 3 && std::string_view{args.at(2)} == "--debug";
 
-  if (args.size() == 3 && !trace) {
+  if (args.size() == 3 && !debug) {
     std::println(stderr, "unknown option: {}", args.at(2));
     return EXIT_FAILURE;
   }
@@ -38,9 +38,15 @@ int main(int argc, char** argv) {
 
   rv32i_emu::Hart hart(kMemoryBase);
 
+  if (debug) {
+    rv32i_emu::Debugger debugger(hart, memory);
+    debugger.Run();
+    return EXIT_SUCCESS;
+  }
+
   constexpr int kMaxCycles = 100'000;
   for (int i = 0; i < kMaxCycles; ++i) {
-    const auto result = trace ? TraceStep(hart, memory) : hart.Step(memory);
+    const auto result = hart.Step(memory);
 
     if (result) continue;
 

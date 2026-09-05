@@ -13,7 +13,7 @@ add_executable(rv32i_emu
   src/disassembler.cc
   src/memory.cc
   src/register_file.cc
-  src/trace.cc
+  src/debugger.cc
 )
 
 target_include_directories(rv32i_emu
