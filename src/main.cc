@@ -41,8 +41,11 @@ int main(int argc, char** argv) {
       rv32i_emu::Hart debug_hart(kMemoryBase);
       rv32i_emu::Debugger debugger(debug_hart, debug_memory);
 
-      if (debugger.Run() == rv32i_emu::Debugger::ExitReason::kQuit) {
-        return EXIT_SUCCESS;
+      switch (debugger.Run()) {
+        case rv32i_emu::Debugger::ExitReason::kQuit:
+          return EXIT_SUCCESS;
+        case rv32i_emu::Debugger::ExitReason::kRestart:
+          continue;
       }
     }
   }
